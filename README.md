@@ -26,7 +26,7 @@
     * Let's do some quick updates
         ```sh
         sudo apt-get update
-        sudo apt-get install docker docker.io -y
+        sudo apt-get install docker docker.io zenity -y
 
         # Only use below commands if you don't want to use sudo with docker commands
         sudo adduser $USER docker
