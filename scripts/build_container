@@ -1,0 +1,95 @@
+#! /bin/bash
+
+TOOLS_DIR="$HOME/.opt/tools"
+
+cancel_operation()
+{
+	zenity --info --text="$1" --no-wrap --ellipsize
+	exit 1
+}
+
+mkdir -p $TOOLS_DIR
+
+zenity --notification --text="Building Docker Container for Proxy"
+
+sleep 2
+
+resp=`zenity --entry --title="Proxy Details" --text="Name the proxy you want to run?" --entry-text="burp/zap"`
+case $resp in
+	"burp")
+		docker ps -a | grep -w "burp" > /dev/null 2>&1
+		case $? in
+			0)
+				cancel_operation "You already have a container with the name 'burp'"
+				;;
+			1)
+				zenity --notification --text="Building Docker Container for Burpsuite"
+				rm -rf $HOME/.ssh/known_hosts
+				;;
+			*)
+				cancel_operation "Unknown Error"
+				;;
+		esac
+		;;
+	"zap")
+		docker ps -a | grep -w "zap" > /dev/null 2>&1
+		case $? in
+			0)
+				cancel_operation "You already have a container with the name 'zap'"
+				;;
+			1)
+				zenity --notification --text="Building Docker Container for OWASP ZAP"
+				rm -rf $HOME/.ssh/known_hosts
+				;;
+			*)
+				cancel_operation "Unknown Error"
+				;;
+		esac
+		;;
+	*)
+		cancel_operation "Please select either burp or zap"
+		;;
+esac
+
+zenity --info --text="Download JAR for Burp.\nFor ZAP, download 'Linux Package'.\nOnce done, press OK." --no-wrap --ellipsize
+case $? in
+	0)
+		file=`zenity --file-selection --title="Select the downloaded file"`
+		;;
+	*)
+		cancel_operation "Unknown Error in selecting downloaded file"
+		;;
+esac
+
+case $resp in
+	"burp")
+		if ! [[ $file == *".jar" ]]; 
+		then
+			cancel_operation "Not a JAR File"
+		fi
+		
+		cp -f $file $TOOLS_DIR/burp.jar
+		docker create -it --name $resp --hostname $resp -v $TOOLS_DIR:/tmp/proxy -w /tmp/proxy --shm-size 4g -p 8080:8080 m2sup3rn0va/docker_proxy:v1  > /dev/null 2>&1
+		zenity --info --text="Docker for Burp - Created Successfully.\nProxy Port:8080" --no-wrap --ellipsize
+		;;
+	"zap")
+		zenity --info --text="Extract TAR file downloaded.\nOnce done, press OK" --no-wrap --ellipsize
+		zap_dir=`zenity --file-selection --title="Select the folder having JAR file" --directory`
+		ls $zap_dir | grep -w "zap.sh" > /dev/null 2>&1
+		case $? in
+			0)
+				cp -rf $zap_dir $TOOLS_DIR/zap
+				zapfilename=`ls $TOOLS_DIR/zap | grep ".jar"`
+				mv -f $TOOLS_DIR/zap/$zapfilename $TOOLS_DIR/zap/zap.jar
+				docker create -it --name $resp --hostname $resp -v $TOOLS_DIR/zap:/tmp/proxy -w /tmp/proxy --shm-size 4g -p 8081:8080 m2sup3rn0va/docker_proxy:v1  > /dev/null 2>&1
+				zenity --info --text="Docker for ZAP - Created Successfully.\nProxy Port:8081" --no-wrap --ellipsize
+				;;
+			1)
+				cancel_operation "Selected folder doesn't have ZAP's JAR file"
+				;;
+			*)
+				cancel_operation "Unknown Error in creating container"
+				;;
+		esac
+		;;
+esac

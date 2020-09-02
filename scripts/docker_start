@@ -1,0 +1,36 @@
+#! /bin/bash
+
+################################################################################
+# Help                                                                         #
+################################################################################
+Help()
+{
+	# Display Help
+	echo "Starts Docker for Proxy"
+       	echo "Needs only one argument :- Name of Container"
+	echo
+	echo "Syntax: dstart [-h] <name_of_container>"
+	echo "Options:"
+	echo "-h     Print this Help."
+	echo
+}
+
+case $1 in
+	-h)
+		Help
+		exit
+		;;
+	"burp" | "zap")
+		docker start $1 > /dev/null 2>&1
+		IP=`docker exec -it $1 ifconfig eth0 | grep inet | awk {'print $2'}`
+		echo "[+] Docker IP: "$IP
+		docker exec -it $1 /etc/init.d/ssh restart > /dev/null 2>&1
+		
+		echo "[+] Starting Proxy"
+		ssh -q -Y root@$IP "java -jar /tmp/proxy/$1.jar > /dev/null 2>&1"
+		;;
+	*)
+		Help
+		exit
+		;;
+esac
